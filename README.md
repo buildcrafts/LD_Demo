@@ -214,5 +214,4 @@ This demo shows how LaunchDarkly can be used to:
 - target features to specific users or segments
 - rollback instantly without redeploying
 - keep a stable default experience for non-targeted users
-```
 
