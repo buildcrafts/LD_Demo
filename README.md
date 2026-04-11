@@ -168,7 +168,7 @@ The app includes 3 sample users:
 3. `Rule-based US design partner`
    - Expected result: revamped experience because `country = US`
 
-## 6. How to demonstrate live rollout and rollback
+## 6. Demo of live rollout and rollback
 
 1. Open the app in the browser.
 2. Open the `revamped-hero` flag in LaunchDarkly.
