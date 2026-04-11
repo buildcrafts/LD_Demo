@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LaunchDarkly Release and Targeting Demo</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="hero">
+        <p class="eyebrow">LaunchDarkly SE Technical Exercise</p>
+        <div class="hero-grid">
+          <div>
+            <h1>Release fast, target safely, and remediate instantly.</h1>
+            <p class="hero-copy">
+              This sample landing page demonstrates a feature-flagged component, live updates with no
+              reload, individual targeting, rule-based targeting, and an optional kill switch for
+              remediation.
+            </p>
+          </div>
+          <div class="status-card">
+            <div class="status-row">
+              <span>LaunchDarkly status</span>
+              <span id="connection-status" class="pill pill-waiting">Connecting</span>
+            </div>
+            <div class="status-row">
+              <span>Flag key</span>
+              <code id="flag-key">revamped-hero</code>
+            </div>
+            <div class="status-row">
+              <span>Current variation</span>
+              <span id="flag-state" class="pill pill-neutral">Unknown</span>
+            </div>
+            <div class="status-row">
+              <span>Updates</span>
+              <span>No page reload required</span>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main class="content-grid">
+        <section class="panel controls-panel">
+          <div class="panel-heading">
+            <h2>1. Pick a simulated visitor</h2>
+            <p>
+              Changing the visitor calls <code>identify()</code>, which causes LaunchDarkly to re-evaluate
+              the flag for a different context.
+            </p>
+          </div>
+
+          <label class="field">
+            <span>Context profile</span>
+            <select id="context-select"></select>
+          </label>
+
+          <div class="context-grid">
+            <div>
+              <h3>Context attributes</h3>
+              <dl id="context-details" class="attribute-list"></dl>
+            </div>
+            <div>
+              <h3>What to configure in LaunchDarkly</h3>
+              <ul class="hint-list">
+                <li>Individual target the context key <code>pilot-account-manager</code>.</li>
+                <li>
+                  Create a rule that serves <strong>true</strong> when
+                  <code>country is US</code>.
+                </li>
+                <li>Leave everyone else on the baseline experience.</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel experience-panel">
+          <div class="panel-heading">
+            <h2>2. Feature-flagged component</h2>
+            <p>
+              The component below renders the old experience when the flag is off and the revamped
+              experience when the flag is on for the current context.
+            </p>
+          </div>
+
+          <div id="experience-root" class="experience-root"></div>
+
+          <div class="cta-row">
+            <button id="primary-cta" class="primary-button">Track CTA engagement</button>
+            <button id="secondary-cta" class="secondary-button">Re-check current variation</button>
+          </div>
+        </section>
+
+        <section class="panel remediation-panel">
+          <div class="panel-heading">
+            <h2>3. Remediate</h2>
+            <p>
+              You can turn the flag off from the LaunchDarkly UI, with a cURL command, or with the
+              optional in-app remediation button below if you add an API token on the server.
+            </p>
+          </div>
+
+          <div class="remediation-actions">
+            <button id="remediate-button" class="danger-button">Simulate incident: turn flag off</button>
+            <p id="remediation-message" class="helper-copy"></p>
+          </div>
+
+          <pre class="code-block"><code id="curl-snippet"></code></pre>
+        </section>
+
+        <section class="panel log-panel">
+          <div class="panel-heading">
+            <h2>4. Event log</h2>
+            <p>
+              This log makes the demo easier to explain during the walkthrough. You will see when the
+              SDK initializes, when contexts change, and when the flag updates in real time.
+            </p>
+          </div>
+
+          <ul id="event-log" class="event-log"></ul>
+        </section>
+      </main>
+    </div>
+
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>
