@@ -6,7 +6,7 @@ A small LaunchDarkly demo app that uses one feature flag, `revamped-hero`, to sh
 - user targeting
 - experimentation
 
-Built with a tiny Node server and the LaunchDarkly browser SDK, the app is intentionally lightweight so the LaunchDarkly flow is easy to explain in a live demo or interview.
+Built with a tiny Node server and the LaunchDarkly browser SDK, the app is intentionally lightweight so the LaunchDarkly flow is easy to understand and easy to run locally.
 
 ## What this demo shows
 
@@ -46,6 +46,13 @@ That keeps the architecture simple, safe, and easy to explain.
 - Node.js 18 or newer
 - A LaunchDarkly account
 - A LaunchDarkly environment with a client-side ID
+
+### Environment assumptions
+
+- The app is run locally on `localhost:3000`
+- The user can create or edit flags, targeting rules, metrics, and experiments in LaunchDarkly
+- The feature flag used by the app is a boolean flag named `revamped-hero`, unless `LD_FLAG_KEY` is changed
+- Optional in-app release/remediation controls require a server-side LaunchDarkly API token
 
 ### Install
 
@@ -222,12 +229,6 @@ The in-app controls map to:
 
 - `Simulate release: turn flag on` -> `turnFlagOn`
 - `Simulate incident: turn flag off` -> `turnFlagOff`
-
-## Interview-ready summary
-
-If you need to explain the project quickly:
-
-> This is a single-page LaunchDarkly demo that uses one boolean flag, `revamped-hero`, to show three core capabilities: release and rollback, targeting, and experimentation. The browser SDK evaluates the flag for different user contexts, listens for live flag changes, and tracks experiment metrics. A small Node server keeps optional API credentials server-side for safe release/remediation actions.
 
 ## Notes
 

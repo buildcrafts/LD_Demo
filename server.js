@@ -19,6 +19,7 @@ const vendorFile = join(
 loadDotEnv();
 
 const port = Number(process.env.PORT || 3000);
+// Only browser-safe LaunchDarkly values are exposed to the client from this object.
 const publicConfig = {
   clientSideId: process.env.LD_CLIENT_SIDE_ID || "",
   flagKey: process.env.LD_FLAG_KEY || "revamped-hero",
@@ -130,6 +131,7 @@ async function updateFlagState(req, res) {
       : "Triggered from local remediation demo";
 
   const response = await fetch(
+    // The flag referenced here must already exist in LaunchDarkly for the configured project/environment.
     `https://app.launchdarkly.com/api/v2/flags/${LD_PROJECT_KEY}/${LD_FLAG_KEY}`,
     {
       method: "PATCH",
