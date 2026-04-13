@@ -45,7 +45,7 @@ const server = createServer(async (req, res) => {
     }
 
     if (req.method === "POST" && url.pathname === "/api/remediate") {
-      return remediateFlag(res);
+      return updateFlagState(req, res);
     }
 
     if (req.method === "GET" && url.pathname === "/vendor/launchdarkly-sdk.js") {
@@ -110,7 +110,7 @@ function loadDotEnv() {
   }
 }
 
-async function remediateFlag(res) {
+async function updateFlagState(req, res) {
   const { LD_API_TOKEN, LD_PROJECT_KEY, LD_ENV_KEY, LD_FLAG_KEY } = process.env;
 
   if (!LD_API_TOKEN || !LD_PROJECT_KEY || !LD_ENV_KEY || !LD_FLAG_KEY) {
@@ -121,6 +121,14 @@ async function remediateFlag(res) {
     });
   }
 
+  const requestBody = await readJsonBody(req);
+  const desiredState = requestBody?.action === "on" ? "on" : "off";
+  const instructionKind = desiredState === "on" ? "turnFlagOn" : "turnFlagOff";
+  const comment =
+    desiredState === "on"
+      ? "Triggered from local release demo"
+      : "Triggered from local remediation demo";
+
   const response = await fetch(
     `https://app.launchdarkly.com/api/v2/flags/${LD_PROJECT_KEY}/${LD_FLAG_KEY}`,
     {
@@ -130,9 +138,9 @@ async function remediateFlag(res) {
         "Content-Type": "application/json; domain-model=launchdarkly.semanticpatch",
       },
       body: JSON.stringify({
-        comment: "Triggered from local remediation demo",
+        comment,
         environmentKey: LD_ENV_KEY,
-        instructions: [{ kind: "turnFlagOff" }],
+        instructions: [{ kind: instructionKind }],
       }),
     },
   );
@@ -148,8 +156,23 @@ async function remediateFlag(res) {
 
   return respondJson(res, 200, {
     ok: true,
-    message: `Flag "${LD_FLAG_KEY}" turned off in environment "${LD_ENV_KEY}".`,
+    message: `Flag "${LD_FLAG_KEY}" turned ${desiredState} in environment "${LD_ENV_KEY}".`,
   });
+}
+
+async function readJsonBody(req) {
+  const chunks = [];
+
+  for await (const chunk of req) {
+    chunks.push(chunk);
+  }
+
+  if (!chunks.length) {
+    return {};
+  }
+
+  const raw = Buffer.concat(chunks).toString("utf8").trim();
+  return raw ? JSON.parse(raw) : {};
 }
 
 function safePath(pathname) {

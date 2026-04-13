@@ -3,6 +3,8 @@ import { basicLogger, createClient } from "/vendor/launchdarkly-sdk.js";
 const sampleContexts = [
   {
     label: "Anonymous visitor",
+    shortLabel: "Anonymous",
+    icon: "◎",
     context: {
       kind: "user",
       key: "anonymous-visitor",
@@ -15,6 +17,8 @@ const sampleContexts = [
   },
   {
     label: "Individually targeted pilot account manager",
+    shortLabel: "Pilot",
+    icon: "✦",
     context: {
       kind: "user",
       key: "pilot-account-manager",
@@ -27,6 +31,8 @@ const sampleContexts = [
   },
   {
     label: "Rule-based US design partner",
+    shortLabel: "US Partner",
+    icon: "◌",
     context: {
       kind: "user",
       key: "enterprise-designer",
@@ -44,34 +50,58 @@ const state = {
   config: null,
   currentContext: sampleContexts[0].context,
   flagValue: false,
+  lastExposureSignature: "",
+  experimentStats: {
+    control: { exposures: 0, demoRequests: 0 },
+    treatment: { exposures: 0, demoRequests: 0 },
+  },
 };
 
 const connectionStatus = document.querySelector("#connection-status");
 const flagKey = document.querySelector("#flag-key");
 const flagState = document.querySelector("#flag-state");
-const contextSelect = document.querySelector("#context-select");
-const contextDetails = document.querySelector("#context-details");
+const personaButtons = document.querySelector("#persona-buttons");
+const personaInitials = document.querySelector("#persona-initials");
+const personaTag = document.querySelector("#persona-tag");
+const personaName = document.querySelector("#persona-name");
+const personaSummary = document.querySelector("#persona-summary");
+const personaChipOne = document.querySelector("#persona-chip-one");
+const personaChipTwo = document.querySelector("#persona-chip-two");
+const personaChipThree = document.querySelector("#persona-chip-three");
 const experienceRoot = document.querySelector("#experience-root");
 const eventLog = document.querySelector("#event-log");
+const releaseButton = document.querySelector("#release-button");
 const remediateButton = document.querySelector("#remediate-button");
 const remediationMessage = document.querySelector("#remediation-message");
 const curlSnippet = document.querySelector("#curl-snippet");
-const primaryCta = document.querySelector("#primary-cta");
 const secondaryCta = document.querySelector("#secondary-cta");
+const experimentVisitorButton = document.querySelector("#experiment-visitor-button");
+const demoRequestButton = document.querySelector("#demo-request-button");
+const bulkExperimentButton = document.querySelector("#bulk-experiment-button");
+const experimentHelper = document.querySelector("#experiment-helper");
+const experimentStageWinner = document.querySelector("#experiment-stage-winner");
+const stageControlTotal = document.querySelector("#stage-control-total");
+const stageTreatmentTotal = document.querySelector("#stage-treatment-total");
+const stageControlBar = document.querySelector("#stage-control-bar");
+const stageTreatmentBar = document.querySelector("#stage-treatment-bar");
+const stageControlExposures = document.querySelector("#stage-control-exposures");
+const stageTreatmentExposures = document.querySelector("#stage-treatment-exposures");
 
 boot();
 
 async function boot() {
-  populateContextSelector();
-  renderContextDetails(state.currentContext);
+  renderPersonaButtons();
+  renderPersonaStage(sampleContexts[0]);
+  renderExperimentStats();
 
   state.config = await fetchJson("/api/config");
   flagKey.textContent = state.config.flagKey;
   curlSnippet.textContent = buildCurlSnippet(state.config);
+  releaseButton.disabled = !state.config.canRemediate;
   remediateButton.disabled = !state.config.canRemediate;
   remediationMessage.textContent = state.config.canRemediate
-    ? "The button is wired to the LaunchDarkly REST API through the local server."
-    : "Optional: add LD_API_TOKEN, LD_PROJECT_KEY, and LD_ENV_KEY to enable the in-app kill switch.";
+    ? "The buttons are wired to the LaunchDarkly REST API through the local server."
+    : "Optional: add LD_API_TOKEN, LD_PROJECT_KEY, and LD_ENV_KEY to enable the in-app release and kill switch.";
 
   if (!state.config.clientSideId) {
     connectionStatus.textContent = "Missing config";
@@ -106,75 +136,108 @@ async function boot() {
   syncVariation("Initial variation loaded.");
 }
 
-contextSelect.addEventListener("change", async (event) => {
-  const selected = sampleContexts[Number(event.target.value)];
-  state.currentContext = selected.context;
-  renderContextDetails(state.currentContext);
+async function selectPersona(index) {
+  const selected = sampleContexts[index];
+  renderPersonaButtons(index);
+  await activateContext(selected, `Switching context to "${selected.label}" via identify().`);
+}
+
+secondaryCta.addEventListener("click", () => {
+  syncVariation("Variation checked manually.");
+});
+
+experimentVisitorButton.addEventListener("click", async () => {
+  const visitor = buildExperimentVisitor();
+  renderPersonaButtons(-1);
+  await activateContext(visitor, `Generated fresh experiment visitor "${visitor.context.key}".`);
+});
+
+bulkExperimentButton.addEventListener("click", async () => {
+  if (!state.client) {
+    return;
+  }
+
+  await generateBulkExperimentTraffic(100);
+});
+
+demoRequestButton.addEventListener("click", async () => {
+  if (!state.client) {
+    return;
+  }
+
+  await trackExperimentEvent(
+    "hero-demo-requested",
+    "demoRequests",
+    "Tracked a demo request event for experimentation/metrics follow-up.",
+  );
+});
+
+async function activateContext(entry, logMessage) {
+  state.currentContext = entry.context;
+  animatePersonaStage(entry);
 
   if (!state.client) {
     renderDisconnectedExperience();
     return;
   }
 
-  logEvent(`Switching context to "${selected.label}" via identify().`);
+  logEvent(logMessage);
   const result = await state.client.identify(state.currentContext);
 
   if (result.status !== "success") {
     logEvent(`identify() did not complete successfully: ${result.status}.`);
   }
 
-  syncVariation(`Re-evaluated flag for "${selected.label}".`);
-});
-
-secondaryCta.addEventListener("click", () => {
-  syncVariation("Variation checked manually.");
-});
-
-primaryCta.addEventListener("click", async () => {
-  if (!state.client) {
-    return;
-  }
-
-  state.client.track("hero-cta-clicked", {
-    flagEnabled: state.flagValue,
-    country: state.currentContext.country,
-    email: state.currentContext.email,
-  });
-  await state.client.flush();
-  logEvent("Tracked a CTA click event for experimentation/metrics follow-up.");
-});
-
-remediateButton.addEventListener("click", async () => {
-  remediationMessage.textContent = "Turning the flag off...";
-
-  try {
-    const response = await fetch("/api/remediate", { method: "POST" });
-    const payload = await response.json();
-
-    if (!response.ok) {
-      throw new Error(payload.detail || payload.error || "Remediation failed");
-    }
-
-    remediationMessage.textContent = payload.message;
-    logEvent("Remediation endpoint called successfully. The flag should turn off almost immediately.");
-  } catch (error) {
-    remediationMessage.textContent = error.message;
-    logEvent(`Remediation failed: ${error.message}`);
-  }
-});
-
-function populateContextSelector() {
-  contextSelect.innerHTML = sampleContexts
-    .map(
-      (entry, index) => `<option value="${index}">${entry.label}</option>`,
-    )
-    .join("");
+  syncVariation(`Re-evaluated flag for "${entry.label}".`);
 }
 
-function renderContextDetails(context) {
-  contextDetails.innerHTML = Object.entries(context)
-    .map(([key, value]) => `<dt>${escapeHtml(key)}</dt><dd>${escapeHtml(String(value))}</dd>`)
+releaseButton.addEventListener("click", () => {
+  updateFlagState("on", "Turning the flag on...", "Release endpoint called successfully. The flag should turn on almost immediately.");
+});
+
+remediateButton.addEventListener("click", () => {
+  updateFlagState("off", "Turning the flag off...", "Remediation endpoint called successfully. The flag should turn off almost immediately.");
+});
+
+function renderPersonaButtons(activeIndex = 0) {
+  personaButtons.innerHTML = sampleContexts
+    .map((entry, index) => {
+      const isActive = index === activeIndex;
+      return `
+        <button
+          class="persona-button ${isActive ? "persona-button-active" : ""}"
+          type="button"
+          data-persona-index="${index}"
+        >
+          <span class="persona-button-icon" aria-hidden="true">${entry.icon}</span>
+          <span class="persona-button-title">${entry.label}</span>
+          <span class="persona-button-subtitle">${personaButtonSubtitle(entry.context)}</span>
+        </button>
+      `;
+    })
     .join("");
+
+  for (const button of personaButtons.querySelectorAll("[data-persona-index]")) {
+    button.addEventListener("click", () => {
+      selectPersona(Number(button.dataset.personaIndex));
+    });
+  }
+}
+
+function renderPersonaStage(entry) {
+  const { label, context } = entry;
+  personaInitials.textContent = context.name
+    .split(" ")
+    .map((part) => part[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+  personaTag.textContent = label;
+  personaName.textContent = context.name;
+  personaSummary.textContent = personaSummaryText(context);
+  personaChipOne.textContent = `Audience: ${personaAudienceText(context)}`;
+  personaChipTwo.textContent = `Country: ${context.country}`;
+  personaChipThree.textContent = `State: ${personaOutcomeText(context)}`;
 }
 
 function syncVariation(reason) {
@@ -183,6 +246,12 @@ function syncVariation(reason) {
   }
 
   state.flagValue = state.client.variation(state.config.flagKey, false);
+  state.client.track("hero-variation-viewed", {
+    flagEnabled: state.flagValue,
+    contextKey: state.currentContext.key,
+    country: state.currentContext.country,
+  });
+  registerExposure();
   flagState.textContent = state.flagValue ? "Revamped experience" : "Baseline experience";
   flagState.className = `pill ${state.flagValue ? "pill-on" : "pill-off"}`;
   renderExperience();
@@ -190,107 +259,81 @@ function syncVariation(reason) {
 }
 
 function renderExperience() {
-  if (state.flagValue) {
-    experienceRoot.innerHTML = `
+  const experienceMarkup = state.flagValue
+    ? `
       <article class="experience-card new">
         <div class="experience-body">
-          <span class="badge">New experience enabled</span>
-          <h3>AI-guided product tour</h3>
-          <p>
-            The revamped component gives visitors a more guided onboarding path with role-aware
-            messaging, stronger calls to action, and richer product signals.
-          </p>
-          <div class="feature-grid">
-            <div class="feature-tile">
-              <strong>Role-aware recommendations</strong>
-              <p>Context attributes shape the way the component speaks to this visitor.</p>
+          <div class="experience-backdrop new-backdrop" aria-hidden="true">
+            <span class="glow glow-one"></span>
+            <span class="glow glow-two"></span>
+            <span class="glow glow-three"></span>
+            <span class="grid-line line-a"></span>
+            <span class="grid-line line-b"></span>
+          </div>
+          <div class="experience-layout">
+            <div class="experience-copy">
+              <span class="badge">New experience enabled</span>
+              <h3>AI-guided product tour</h3>
+              <p>Visual, guided, adaptive.</p>
             </div>
-            <div class="feature-tile">
-              <strong>Shorter time to value</strong>
-              <p>Focused messaging helps high-value audiences reach the right workflow faster.</p>
+            <div class="visual-stage visual-stage-new" aria-hidden="true">
+              <div class="pulse-orbit orbit-one"></div>
+              <div class="pulse-orbit orbit-two"></div>
+              <div class="pulse-orbit orbit-three"></div>
+              <div class="signal-core">
+                <span class="signal-dot dot-a"></span>
+                <span class="signal-dot dot-b"></span>
+                <span class="signal-dot dot-c"></span>
+              </div>
+              <div class="metric-stack">
+                <div class="metric-chip chip-rise">Adoption +18%</div>
+                <div class="metric-chip chip-fast">Live rollout</div>
+                <div class="metric-chip chip-safe">Instant rollback</div>
+              </div>
             </div>
-            <div class="feature-tile">
-              <strong>Safer rollout</strong>
-              <p>The experience can be turned off instantly if a production issue appears.</p>
+          </div>
+          <div class="graphic-grid graphic-grid-new">
+            <div class="graphic-tile tile-insight">
+              <span class="graphic-kicker">Adaptive</span>
+              <div class="mini-bars">
+                <span style="height: 26%"></span>
+                <span style="height: 48%"></span>
+                <span style="height: 72%"></span>
+                <span style="height: 96%"></span>
+              </div>
+            </div>
+            <div class="graphic-tile tile-flow">
+              <span class="graphic-kicker">Guided path</span>
+              <div class="mini-path">
+                <span></span>
+                <span></span>
+                <span></span>
+              </div>
+            </div>
+            <div class="graphic-tile tile-shield">
+              <span class="graphic-kicker">Safe rollout</span>
+              <div class="mini-shield"></div>
             </div>
           </div>
         </div>
       </article>
-    `;
-    return;
-  }
-
-  experienceRoot.innerHTML = `
+    `
+    : `
     <article class="experience-card old">
       <div class="experience-body">
-        <span class="badge">Baseline experience</span>
-        <h3>Classic landing page component</h3>
-        <p>
-          This is the stable production version. It is simpler, lower risk, and acts as the safe
-          rollback target whenever the flag is off.
-        </p>
-        <div class="feature-grid">
-          <div class="feature-tile">
-            <strong>Static headline</strong>
-            <p>A dependable control experience for general traffic.</p>
-          </div>
-          <div class="feature-tile">
-            <strong>Known-good UI</strong>
-            <p>This mirrors the “old code path” required by the assignment.</p>
-          </div>
-          <div class="feature-tile">
-            <strong>Fast rollback</strong>
-            <p>If the new feature misbehaves, this version returns immediately.</p>
-          </div>
+        <div class="experience-backdrop old-backdrop" aria-hidden="true">
+          <span class="wireframe frame-a"></span>
+          <span class="wireframe frame-b"></span>
+          <span class="wireframe frame-c"></span>
         </div>
-      </div>
-    </article>
-  `;
-}
-
-function renderDisconnectedExperience() {
-  experienceRoot.innerHTML = `
-    <article class="experience-card old">
-      <div class="experience-body">
-        <span class="badge">Setup required</span>
-        <h3>Add LaunchDarkly credentials</h3>
-        <p>
-          The app is built and ready, but it needs <code>LD_CLIENT_SIDE_ID</code> in
-          <code>.env</code> before the browser SDK can connect and evaluate your feature flag.
-        </p>
-      </div>
-    </article>
-  `;
-}
-
-function logEvent(message) {
-  const timestamp = new Date().toLocaleTimeString();
-  const item = document.createElement("li");
-  item.textContent = `[${timestamp}] ${message}`;
-  eventLog.prepend(item);
-}
-
-function buildCurlSnippet(config) {
-  return `curl -X PATCH https://app.launchdarkly.com/api/v2/flags/${config.projectKey || "<project-key>"}/${config.flagKey} \\
-  -H "Authorization: <api-token>" \\
-  -H "Content-Type: application/json; domain-model=launchdarkly.semanticpatch" \\
-  -d '{
-    "comment": "Triggered from demo runbook",
-    "environmentKey": "${config.environmentKey || "<environment-key>"}",
-    "instructions": [{ "kind": "turnFlagOff" }]
-  }'`;
-}
-
-async function fetchJson(url) {
-  const response = await fetch(url);
-  return response.json();
-}
-
-function escapeHtml(value) {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
-}
+        <div class="experience-layout">
+          <div class="experience-copy">
+            <span class="badge">Baseline experience</span>
+            <h3>Classic landing page component</h3>
+            <p>Stable, familiar, rollback-safe.</p>
+          </div>
+          <div class="visual-stage visual-stage-old" aria-hidden="true">
+            <div class="legacy-frame">
+              <div class="legacy-topbar"></div>
+              <div class="legacy-row row-wide"></div>
+              <div class="legacy-row row-mid"></span>

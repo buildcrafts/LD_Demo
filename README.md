@@ -1,217 +1,239 @@
-
-
 # LaunchDarkly Demo
 
-A sample LaunchDarkly demo app that shows:
+This project implements the two required parts of the assignment in a single JavaScript application:
 
-- live feature release and rollback
-- individual targeting
-- rule-based targeting
-- a safe baseline experience when the flag is off
+- Part 1: Release and remediate
+- Part 2: Target a feature to specific contexts
+- Extra credit: Experimentation
 
-This project was built as a LaunchDarkly technical exercise using the JavaScript browser SDK.
+The app is intentionally small so the LaunchDarkly behavior is easy to explain in a live demo.
 
 ## What this app demonstrates
 
 ### Part 1: Release and remediate
 
 - A boolean feature flag wraps a landing page component.
-- When the flag changes in LaunchDarkly, the page updates immediately without a browser refresh.
-- Turning the flag off rolls the app back to the stable baseline experience.
+- When the flag changes, the page updates immediately without a refresh.
+- The old and new experiences are clearly separated, so rollback is easy to show.
+- Release and remediation can be demonstrated three ways:
+  - Turn the flag on or off in the LaunchDarkly UI
+  - Use the provided cURL command pattern
+  - Optionally click the in-app release and remediation buttons if you configure a LaunchDarkly API token on the server
 
 ### Part 2: Target
 
-- The app can switch between multiple sample users using `identify()`.
-- One user is individually targeted.
-- One user is targeted through a rule-based attribute match.
-- Everyone else stays on the baseline experience.
+- The page can switch between multiple sample contexts using `identify()`.
+- One context is intended for individual targeting:
+  - `pilot-account-manager`
+- One context is intended for rule-based targeting:
+  - `country = US`
+- One context is the default audience and should receive the baseline experience.
 
-## Tech stack
+### Extra credit: Experimentation
 
-- Node.js
-- LaunchDarkly JavaScript client-side SDK
-- Plain HTML, CSS, and JavaScript
+- The same `revamped-hero` flag can also be used in a LaunchDarkly experiment.
+- The app tracks:
+  - `hero-variation-viewed` for exposure
+  - `hero-demo-requested` as the primary conversion metric
+- The UI includes a live comparison board plus experiment-traffic helpers so you can generate realistic demo traffic.
 
-## Project structure
+## Why I chose this implementation
 
-- `server.js`
-  Serves the app, loads `.env`, exposes browser-safe config, and optionally supports remediation.
-- `public/index.html`
-  Main app markup.
-- `public/styles.css`
-  Styling for the demo UI.
-- `public/app.js`
-  LaunchDarkly initialization, targeting logic, live flag updates, and UI rendering.
-- `.env.example`
-  Template for local environment variables.
+The assignment is about demonstrating LaunchDarkly concepts, not building a complex product. Because of that, I kept the project focused:
+
+- A tiny Node server serves the page and exposes safe browser config.
+- The browser LaunchDarkly SDK handles evaluation and real-time updates.
+- The browser never receives the optional API token used for remediation.
+
+This makes the architecture easy to explain and safe by default.
 
 ## Prerequisites
 
-Before running this app, make sure you have:
-
 - Node.js 18 or newer
-- A LaunchDarkly account
-- Access to a LaunchDarkly project/environment
-- A client-side ID for that LaunchDarkly environment
+- A LaunchDarkly trial or existing account
+- A LaunchDarkly environment with a client-side ID
 
-## 1. Clone and install
+## 1. Install dependencies
 
 ```bash
-git clone https://github.com/buildcrafts/LD_Demo.git
-cd LD_Demo
 npm install
 ```
 
-## 2. Create local environment file
+## 2. Create local environment configuration
 
-Create a `.env` file in the project root.
-
-You can copy the template:
+Copy `.env.example` to `.env` and replace the placeholders:
 
 ```bash
 cp .env.example .env
 ```
 
-Then update `.env` to look like this:
+Required values:
 
-```env
-PORT=3000
-LD_CLIENT_SIDE_ID=your-client-side-id
-LD_FLAG_KEY=revamped-hero
-LD_PROJECT_KEY=default
-LD_ENV_KEY=test
-```
+- `LD_CLIENT_SIDE_ID`
+- `LD_FLAG_KEY`
 
-Optional, only needed for the in-app remediation button:
+Optional values for the in-app release and remediation controls:
 
-```env
-LD_API_TOKEN=your-launchdarkly-api-token
-```
+- `LD_PROJECT_KEY`
+- `LD_ENV_KEY`
+- `LD_API_TOKEN`
 
 Important:
-- `LD_CLIENT_SIDE_ID` must be the client-side ID from the exact LaunchDarkly environment where your flag exists.
-- `.env` is ignored by git and should not be committed.
 
-## 3. Configure LaunchDarkly
+- `LD_CLIENT_SIDE_ID` is safe for the browser.
+- `LD_API_TOKEN` is not safe for the browser. This project keeps it server-side only.
 
-### Create the flag
+## 3. Create the LaunchDarkly flag
 
-In LaunchDarkly, create a boolean flag with:
+Create a boolean flag in LaunchDarkly with this key:
 
-- Name: `Revamped Hero`
-- Key: `revamped-hero`
+```text
+revamped-hero
+```
 
-### Make it available to the browser SDK
+Or use whatever you set in `LD_FLAG_KEY`.
 
-Open the flag settings and make sure:
+When configuring the flag:
 
-- `Available on client-side SDKs` is turned on
+1. Make sure the flag is available to client-side SDKs using the client-side ID.
+2. Keep the off variation mapped to the baseline experience.
+3. Keep the on variation mapped to the revamped experience.
 
-### Confirm the variations
+## 4. Configure targeting
 
-This app expects:
+Use the sample contexts already built into the app.
 
-- `true` = revamped experience
-- `false` = baseline experience
+### Individual targeting
 
-### Configure targeting
+Add an individual target for this context key:
 
-Use the `Test` environment or whichever environment matches your `LD_CLIENT_SIDE_ID`.
+```text
+pilot-account-manager
+```
 
-Set the targeting rules like this:
+Serve the `true` variation to that context.
 
-#### Individual target
+### Rule-based targeting
 
-Add an individual target:
+Add a targeting rule that serves `true` when:
 
-- Context kind: `user`
-- Context key: `pilot-account-manager`
-- Variation: `true`
+- `country` is `US`
 
-#### Rule-based target
+This allows the `enterprise-designer` context to receive the new experience through an attribute-based rule that is easy to configure in the LaunchDarkly UI.
 
-Add a custom rule:
+### Default audience
 
-- If `user.country` is one of `US`
-- Serve `true`
+Leave the anonymous visitor on the baseline experience.
 
-#### Default rule
-
-Set the default rule to:
-
-- Serve `false`
-
-## 4. Run the app
-
-Start the local server:
+## 5. Run the app
 
 ```bash
 npm run dev
 ```
 
-Open the app in your browser:
+Open:
 
 ```text
 http://localhost:3000
 ```
 
-## 5. How to use the demo
+## How to demo the assignment
 
-The app includes 3 sample users:
+### Demo Part 1: Release and remediate
 
-1. `Anonymous visitor`
-   - Expected result: baseline experience
+1. Start the app and confirm the SDK connects.
+2. Show the baseline component.
+3. Turn the flag on in LaunchDarkly, or click the in-app `Simulate release: turn flag on` button if API credentials are configured.
+4. Observe that the page swaps to the new component without a reload.
+5. Turn the flag off again:
+   - in the LaunchDarkly UI, or
+   - with the cURL command shown in the app, or
+   - with the in-app `Simulate incident: turn flag off` button if API credentials are configured
+6. Observe that the page instantly returns to the baseline component.
 
-2. `Individually targeted pilot account manager`
-   - Expected result: revamped experience
+### Demo Part 2: Targeting
 
-3. `Rule-based US design partner`
-   - Expected result: revamped experience because `country = US`
+1. Select `Anonymous visitor` and show the baseline experience.
+2. Select `Individually targeted pilot account manager` and show the targeted experience.
+3. Select `Rule-based US design partner` and show the rule-based experience.
+4. Explain that switching profiles uses LaunchDarkly `identify()` to re-evaluate the same flag for a different context.
 
-## 6. Demo of live rollout and rollback
+### Demo Part 3: Experimentation
 
-1. Open the app in the browser.
-2. Open the `revamped-hero` flag in LaunchDarkly.
-3. Toggle the flag on or off.
-4. Watch the app update immediately without reloading the page.
+1. Keep using the same `revamped-hero` flag.
+2. In LaunchDarkly, create a metric using this event key:
+   - `hero-demo-requested`
+3. Create an experiment on `revamped-hero` and attach the metric.
+4. Use `user` as the randomization unit.
+5. Run the experiment on the `Default Rule` so untargeted users are eligible for the experiment.
+6. In the app, use:
+   - `Generate experiment visitor` to create one fresh untargeted user
+   - `Simulate demo request` to record the conversion for that user
+   - `Generate 100 experiment visitors` to create experiment traffic faster
+7. Refresh the LaunchDarkly Results page after 1-2 minutes and confirm that:
+   - exposures are increasing
+   - both `true` and `false` variations are receiving traffic
+   - the `Demo requests` metric is being attributed to the experiment
 
-This works because the browser SDK listens for LaunchDarkly flag change events and re-renders the component live.
+This gives you a full “measure impact” story on top of the existing release and targeting demo.
 
-## 7. Optional remediation flow
+## Project structure
 
-This project also supports an optional remediation button.
+- `server.js`: serves the app, exposes browser-safe config, and optionally calls the LaunchDarkly REST API for remediation
+- `public/index.html`: app structure
+- `public/styles.css`: UI styling
+- `public/app.js`: LaunchDarkly client setup, live updates, targeting demo, and event tracking
 
-If you set these values in `.env`:
+## Code walkthrough
 
-```env
-LD_API_TOKEN=your-launchdarkly-api-token
-LD_PROJECT_KEY=default
-LD_ENV_KEY=test
+### Live release and rollback
+
+The browser SDK is initialized once and subscribed to:
+
+- `change:<flag-key>`
+
+When that event fires, the app re-renders the component immediately. This satisfies the “listener” requirement and avoids a page refresh.
+
+### Targeting
+
+The app includes multiple sample contexts. When the visitor selector changes, the app calls:
+
+```js
+client.identify(nextContext)
 ```
 
-the app can call the LaunchDarkly REST API and turn the flag off from the UI.
+That tells LaunchDarkly to evaluate the same flag for a different user profile.
 
-If you do not configure this, the app still works fully for:
-- flag evaluation
-- live updates
-- targeting
-- manual rollback through LaunchDarkly
+### Experimentation
 
-## 8. Notes
+The app tracks two experiment-friendly events:
 
-- If the app shows `Missing config`, your `.env` file is missing or not named correctly.
-- If the app connects but targeting does not work, verify that:
-  - the client-side ID belongs to the same LaunchDarkly environment as the flag
-  - the flag key is `revamped-hero`
-  - the flag is enabled for client-side SDKs
-  - the targeting rules were saved in the correct environment
+- `hero-variation-viewed`
+- `hero-demo-requested`
 
-## Summary
+The first event acts as an exposure signal when a user lands in a variation. The second represents the outcome you want to improve.
 
-This demo shows how LaunchDarkly can be used to:
+The app includes two experiment helpers:
 
-- release features safely
-- target features to specific users or segments
-- rollback instantly without redeploying
-- keep a stable default experience for non-targeted users
+- `Generate experiment visitor`
+  Creates a fresh untargeted user key so the visitor flows through the experiment on the default rule instead of through individual or rule-based targeting.
+- `Generate 100 experiment visitors`
+  Creates many fresh users in sequence and records demo-request events so LaunchDarkly has enough traffic to start showing experiment movement.
 
+This makes it straightforward to create a metric in LaunchDarkly and run an experiment using the same feature flag.
+
+### Release and remediation
+
+If `LD_API_TOKEN`, `LD_PROJECT_KEY`, and `LD_ENV_KEY` are configured, the server can send semantic patch requests to the LaunchDarkly REST API that turn the flag on or off. This is optional because the assignment can also be demonstrated through the LaunchDarkly UI.
+
+The in-app controls map to these LaunchDarkly actions:
+
+- `Simulate release: turn flag on` -> `turnFlagOn`
+- `Simulate incident: turn flag off` -> `turnFlagOff`
+
+## Assumptions
+
+- The evaluator running this project has permission to create flags and targeting rules in LaunchDarkly.
+- The flag is boolean.
+- The evaluator is comfortable using a local `.env` file.
+- The evaluator wants a single-page demo instead of a multi-route application because the main goal is to show LaunchDarkly behavior clearly.
