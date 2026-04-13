@@ -68,12 +68,12 @@ Copy `.env.example` to `.env`:
 cp .env.example .env
 ```
 
-Required values:
+Required values for the browser flag demo:
 
 - `LD_CLIENT_SIDE_ID`
 - `LD_FLAG_KEY`
 
-Optional values for in-app release/remediation:
+Additional values required for in-app release/remediation:
 
 - `LD_PROJECT_KEY`
 - `LD_ENV_KEY`
@@ -83,6 +83,36 @@ Notes:
 
 - `LD_CLIENT_SIDE_ID` is safe for the browser.
 - `LD_API_TOKEN` is secret and is only used server-side.
+
+### How to find these values in LaunchDarkly
+
+#### `LD_CLIENT_SIDE_ID`
+
+1. Open your LaunchDarkly project.
+2. Go to `Project settings` -> `Environments`.
+3. Open the environment you want to use, for example `Test`.
+4. Copy the `Client-side ID`.
+
+#### `LD_PROJECT_KEY`
+
+You can find the project key in either of these places:
+
+- `Project settings`
+- the LaunchDarkly URL, where it appears as `/projects/<project-key>/...`
+
+#### `LD_ENV_KEY`
+
+1. Go to `Project settings` -> `Environments`.
+2. Open the environment you are using.
+3. Copy the environment key.
+
+#### `LD_API_TOKEN`
+
+1. Open LaunchDarkly settings.
+2. Go to `Authorization`.
+3. Open `Access tokens`.
+4. Create a token with permission to update flags in your project/environment.
+5. Copy the token and store it in `.env`.
 
 ### Run the app
 
