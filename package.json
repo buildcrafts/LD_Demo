@@ -1,7 +1,7 @@
 {
   "name": "lddemos",
   "version": "1.0.0",
-  "description": "LaunchDarkly technical exercise demo app",
+  "description": "LaunchDarkly demo app for rollout, targeting, and experimentation",
   "main": "server.js",
   "scripts": {
     "dev": "node --watch server.js",
