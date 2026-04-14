@@ -8,7 +8,7 @@ A small LaunchDarkly demo app that uses one feature flag, `revamped-hero`, to sh
 
 Built with a tiny Node server and the LaunchDarkly browser SDK, the app is intentionally lightweight so the LaunchDarkly flow is easy to understand and easy to run locally.
 
-See the LaunchDarkly setup section below for the exact flag, targeting, and experimentation configuration used by the demo.
+The LaunchDarkly setup section below covers the exact flag, targeting, and experimentation configuration used by the demo.
 
 ## What this demo shows
 
@@ -29,7 +29,7 @@ See the LaunchDarkly setup section below for the exact flag, targeting, and expe
 
 - The same `revamped-hero` flag is reused for an experiment.
 - The experiment compares control = baseline hero vs treatment = revamped hero.
-- The primary metric is `hero-demo-requested`
+- The primary metric is `hero-demo-requested`.
 
 ## Why this implementation
 
@@ -65,6 +65,7 @@ npm install
 ### Local configuration
 
 Copy `.env.example` to `.env`:
+
 ```bash
 cp .env.example .env
 ```
@@ -116,11 +117,13 @@ You can find the project key in either of these places:
 5. Copy the token and store it in `.env`.
 
 ### Run the app
+
 ```bash
 npm run dev
 ```
 
 Open:
+
 ```text
 http://localhost:3000
 ```
@@ -130,6 +133,7 @@ http://localhost:3000
 ### Create the flag
 
 Create a boolean flag with key:
+
 ```text
 revamped-hero
 ```
@@ -147,6 +151,7 @@ Use the sample contexts already built into the app.
 #### Individual target
 
 Target this context key with variation `true`:
+
 ```text
 pilot-account-manager
 ```
@@ -154,6 +159,7 @@ pilot-account-manager
 #### Rule-based target
 
 Add a rule that serves `true` when:
+
 ```text
 country = US
 ```
@@ -171,7 +177,7 @@ Leave the anonymous visitor on the baseline experience.
 1. Start the app and confirm the LaunchDarkly SDK connects.
 2. Show the baseline experience.
 3. Turn the flag on in LaunchDarkly, or use the in-app release button if API credentials are configured.
-4 . Show that the page swaps to the revamped experience without a refresh.
+4. Show that the page swaps to the revamped experience without a refresh.
 5. Turn the flag off again.
 6. Show that the app instantly returns to the baseline experience.
 
@@ -180,7 +186,7 @@ Leave the anonymous visitor on the baseline experience.
 1. Select `Anonymous visitor` and show the baseline experience.
 2. Select `Individually targeted pilot account manager` and show the targeted experience.
 3. Select `Rule-based US design partner` and show the rule-based experience.
-4 . Explain that switching personas calls LaunchDarkly `identify()` to re-evaluate the same flag for a different context.
+4. Explain that switching personas calls LaunchDarkly `identify()` to re-evaluate the same flag for a different context.
 
 ### Experimentation
 
@@ -241,6 +247,7 @@ The app sends two experiment-related events:
 The first acts as a variation-view signal. The second is the outcome metric used in LaunchDarkly experimentation.
 
 The app also includes experiment traffic helpers:
+
 - `Generate experiment visitor`
   Creates a fresh untargeted user so the user flows through the experiment path cleanly.
 - `Generate 100 experiment visitors`

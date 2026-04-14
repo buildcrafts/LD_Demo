@@ -50,7 +50,7 @@ const server = createServer(async (req, res) => {
     }
 
     if (req.method === "GET" && url.pathname === "/vendor/launchdarkly-sdk.js") {
-      // Serve the browser SDK from the local app so the demo can run without bundling.
+      // Serve the browser SDK locally so the demo can run without a separate bundling step.
       const contents = await readFile(vendorFile, "utf8");
       return respondText(res, 200, contents, "text/javascript; charset=utf-8");
     }

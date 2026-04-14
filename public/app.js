@@ -50,6 +50,7 @@ const state = {
   client: null,
   config: null,
   currentContext: sampleContexts[0].context,
+  // Keep a small local mirror of experiment stats so the demo board updates immediately.
   flagValue: false,
   lastExposureSignature: "",
   experimentStats: {
